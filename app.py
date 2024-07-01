@@ -79,6 +79,8 @@ if st.button("Generate"):
         # Print the response
         print(response)
         transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
+        
+        st.title("Audio transcript")
         st.write(transcript)
         
         st.divider() 
