@@ -1,4 +1,3 @@
-# main.py (python example)
 import streamlit as st
 import os
 from langchain_core.output_parsers import StrOutputParser
@@ -31,53 +30,61 @@ def record_and_save_audio():
             st.session_state.is_recording = False
             sd.stop()
             st.session_state.recording = st.session_state.recording.reshape(-1)
-            wavfile.write('audio.wav', sample_rate, st.session_state.recording)
+            wavfile.write('u_audio.wav', sample_rate, st.session_state.recording)
             st.write("Recording complete.")
-            st.success("Audio saved as 'audio.wav'.")
+            st.success("Audio saved as 'u_audio.wav'.")
 
 st.title("Voice Recorder")
 
+# Audio file upload
+st.sidebar.title("Audio File Upload")
+uploaded_file = st.sidebar.file_uploader("Upload an audio file", type=["wav", "mp3", "ogg"])
+
+if uploaded_file is not None:
+    # Save the uploaded file with a specific name u_audio.wav
+    with open("u_audio.wav", "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    st.sidebar.success("File saved as u_audio.wav")
+
 record_and_save_audio()
-# load_dotenv()
-# Path to the audio file
-AUDIO_FILE = "test.wav"
+
+# Check which audio file to use
+audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "test.wav"
 
 API_KEY = os.getenv("DG_API_KEY")
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 
-
-
-
-
-def main():
+# Generate button
+if st.button("Generate"):
     try:
-        # STEP 1 Create a Deepgram client using the API key
+        # Create a Deepgram client using the API key
         deepgram = DeepgramClient(API_KEY)
 
-        with open(AUDIO_FILE, "rb") as file:
+        with open(audio_file_path, "rb") as file:
             buffer_data = file.read()
 
         payload: FileSource = {
             "buffer": buffer_data,
         }
 
-        #STEP 2: Configure Deepgram options for audio analysis
+        # Configure Deepgram options for audio analysis
         options = PrerecordedOptions(
             model="nova-2",
             smart_format=True,
         )
 
-        # STEP 3: Call the transcribe_file method with the text payload and options
+        # Call the transcribe_file method with the text payload and options
         response = deepgram.listen.prerecorded.v("1").transcribe_file(payload, options)
 
-        # STEP 4: Print the response
-        # print(response.to_json(indent=4))
-        print (response)
+        # Print the response
+        print(response)
         transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
         st.write(transcript)
         
         st.divider() 
-    #  ////////////   propmts  AND openai integration  /////////////////////
+
+        # st.title("SOAP note")
+        # OpenAI integration for generating SOAP notes
         model = ChatOpenAI(model="gpt-3.5-turbo")
 
         prompt = ChatPromptTemplate.from_template("""You are an expert medical assistant trained to generate detailed SOAP notes based on patient information. Your task is to create a complete SOAP note that includes the following sections:
@@ -123,16 +130,13 @@ def main():
 
         Plan:
         [Plan summary] """)
+
         output_parser = StrOutputParser()
 
         chain = prompt | model | output_parser
-
-        # chain.invoke({"topic": "ice cream"})
+        st.title("SOAP note")
         st.write(chain.invoke({"topic": transcript}))
         
     except Exception as e:
-        print(st.write(f"Exception: {e}"))
+        st.write(f"Exception: {e}")
 
-
-if __name__ == "__main__":
-    main()
