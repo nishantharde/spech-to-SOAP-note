@@ -11,6 +11,7 @@ from deepgram import (
 )
 import sounddevice as sd
 import scipy.io.wavfile as wavfile
+
 load_dotenv()
 
 def record_and_save_audio():
@@ -34,111 +35,114 @@ def record_and_save_audio():
             st.write("Recording complete.")
             st.success("Audio saved as 'u_audio.wav'.")
 
-st.title("Voice Recorder")
+def main():
+    st.title("Voice Recorder")
 
-# Audio file upload
-st.sidebar.title("Audio File Upload")
-uploaded_file = st.sidebar.file_uploader("Upload an audio file", type=["wav", "mp3", "ogg"])
+    # Audio file upload
+    st.sidebar.title("Audio File Upload")
+    uploaded_file = st.sidebar.file_uploader("Upload an audio file", type=["wav", "mp3", "ogg"])
 
-if uploaded_file is not None:
-    # Save the uploaded file with a specific name u_audio.wav
-    with open("u_audio.wav", "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    st.sidebar.success("File saved as u_audio.wav")
+    if uploaded_file is not None:
+        # Save the uploaded file with a specific name u_audio.wav
+        with open("u_audio.wav", "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        st.sidebar.success("File saved as u_audio.wav")
 
-record_and_save_audio()
+    record_and_save_audio()
 
-# Check which audio file to use
-audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "test.wav"
+    # Check which audio file to use
+    # audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "mono.mp3"
+    audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "test.wav"
 
-API_KEY = os.getenv("DG_API_KEY")
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+    API_KEY = os.getenv("DG_API_KEY")
+    os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 
-# Generate button
-if st.button("Generate"):
-    try:
-        # Create a Deepgram client using the API key
-        deepgram = DeepgramClient(API_KEY)
+    # Generate button
+    if st.button("Generate"):
+        try:
+            # Create a Deepgram client using the API key
+            deepgram = DeepgramClient(API_KEY)
 
-        with open(audio_file_path, "rb") as file:
-            buffer_data = file.read()
+            with open(audio_file_path, "rb") as file:
+                buffer_data = file.read()
 
-        payload: FileSource = {
-            "buffer": buffer_data,
-        }
+            payload: FileSource = {
+                "buffer": buffer_data,
+            }
 
-        # Configure Deepgram options for audio analysis
-        options = PrerecordedOptions(
-            model="nova-2",
-            smart_format=True,
-        )
+            # Configure Deepgram options for audio analysis
+            options = PrerecordedOptions(
+                model="nova-2",
+                smart_format=True
+            )
 
-        # Call the transcribe_file method with the text payload and options
-        response = deepgram.listen.prerecorded.v("1").transcribe_file(payload, options)
+            # Call the transcribe_file method with the text payload and options
+            response = deepgram.listen.prerecorded.v("1").transcribe_file(payload, options)
 
-        # Print the response
-        print(response)
-        transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
-        
-        st.title("Audio transcript")
-        st.write(transcript)
-        
-        st.divider() 
+            # Print the response
+            print(response)
+            transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
 
-        # st.title("SOAP note")
-        # OpenAI integration for generating SOAP notes
-        model = ChatOpenAI(model="gpt-3.5-turbo")
+            st.title("Audio transcript")
+            st.write(transcript)
 
-        prompt = ChatPromptTemplate.from_template("""You are an expert medical assistant trained to generate detailed SOAP notes based on patient information. Your task is to create a complete SOAP note that includes the following sections:
+            st.divider()
 
-        "Hear are the patient's data = {topic}
-        you also need to figer out SOAP from the data."
-        
-        Subjective:
-        - Summarize the patient's chief complaint, history of present illness, and any relevant past medical history, social history, or review of systems.
+            # OpenAI integration for generating SOAP notes
+            model = ChatOpenAI(model="gpt-3.5-turbo")
 
-        Objective: 
-        - Provide a summary of any relevant physical exam findings, vital signs, laboratory results, or other objective data collected during the patient encounter.
+            prompt = ChatPromptTemplate.from_template("""You are an expert medical assistant trained to generate detailed SOAP notes based on patient information. Your task is to create a complete SOAP note that includes the following sections:
 
-        Assessment:
-        - Provide your assessment of the patient's condition, including any diagnoses or differential diagnoses.
+            "Here are the patient's data = {topic}
+            you also need to figure out SOAP from the data."
 
-        Plan:
-        - Recommend an appropriate treatment plan, including any medications, therapies, referrals, or follow-up instructions.
+            Subjective:
+            - Summarize the patient's chief complaint, history of present illness, and any relevant past medical history, social history, or review of systems.
 
-        Use the following information about the patient to generate the SOAP note:
+            Objective: 
+            - Provide a summary of any relevant physical exam findings, vital signs, laboratory results, or other objective data collected during the patient encounter.
 
-        Patient name: [Patient Name]
-        Age: [Patient Age]
-        Chief complaint: [Chief Complaint]
-        History of present illness: [History of Present Illness]
-        Past medical history: [Past Medical History]
-        Social history: [Social History] 
-        Review of systems: [Review of Systems]
-        Physical exam findings: [Physical Exam Findings]
-        Vital signs: [Vital Signs]
-        Laboratory results: [Laboratory Results]
+            Assessment:
+            - Provide your assessment of the patient's condition, including any diagnoses or differential diagnoses.
 
-        Respond with the complete SOAP note in the following format:
+            Plan:
+            - Recommend an appropriate treatment plan, including any medications, therapies, referrals, or follow-up instructions.
 
-        Subjective:
-        [Subjective summary]
+            Use the following information about the patient to generate the SOAP note:
 
-        Objective: 
-        [Objective summary]
+            Patient name: [Patient Name]
+            Age: [Patient Age]
+            Chief complaint: [Chief Complaint]
+            History of present illness: [History of Present Illness]
+            Past medical history: [Past Medical History]
+            Social history: [Social History] 
+            Review of systems: [Review of Systems]
+            Physical exam findings: [Physical Exam Findings]
+            Vital signs: [Vital Signs]
+            Laboratory results: [Laboratory Results]
 
-        Assessment:
-        [Assessment summary]  
+            Respond with the complete SOAP note in the following format:
 
-        Plan:
-        [Plan summary] """)
+            Subjective:
+            [Subjective summary]
 
-        output_parser = StrOutputParser()
+            Objective: 
+            [Objective summary]
 
-        chain = prompt | model | output_parser
-        st.title("SOAP note")
-        st.write(chain.invoke({"topic": transcript}))
-        
-    except Exception as e:
-        st.write(f"Exception: {e}")
+            Assessment:
+            [Assessment summary]  
 
+            Plan:
+            [Plan summary] """)
+
+            output_parser = StrOutputParser()
+
+            chain = prompt | model | output_parser
+            st.title("SOAP note")
+            st.write(chain.invoke({"topic": transcript}))
+
+        except Exception as e:
+            st.write(f"Exception: {e}")
+
+if __name__ == "__main__":
+    main()
