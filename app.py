@@ -51,8 +51,8 @@ def main():
     record_and_save_audio()
 
     # Check which audio file to use
-    # audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "mono.mp3"
-    audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "test.wav"
+    audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "mono.mp3"
+    # audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "test.wav"
 
     API_KEY = os.getenv("DG_API_KEY")
     os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -90,50 +90,59 @@ def main():
 
             # OpenAI integration for generating SOAP notes
             model = ChatOpenAI(model="gpt-3.5-turbo")
+            prompt = ChatPromptTemplate.from_template("""
+                You are an expert medical assistant trained to generate detailed SOAP notes based on patient information. Your task is to create a complete SOAP note that includes the following sections:
 
-            prompt = ChatPromptTemplate.from_template("""You are an expert medical assistant trained to generate detailed SOAP notes based on patient information. Your task is to create a complete SOAP note that includes the following sections:
+                "Here are the patient's data = {topic}
+                you also need to figure out SOAP from the data."
 
-            "Here are the patient's data = {topic}
-            you also need to figure out SOAP from the data."
+                Subjective:
+                - Summarize the patient's chief complaint, history of present illness, and any relevant past medical history, social history, or review of systems.
 
-            Subjective:
-            - Summarize the patient's chief complaint, history of present illness, and any relevant past medical history, social history, or review of systems.
+                Objective: 
+                - Provide a summary of any relevant physical exam findings, vital signs, laboratory results, or other objective data collected during the patient encounter.
 
-            Objective: 
-            - Provide a summary of any relevant physical exam findings, vital signs, laboratory results, or other objective data collected during the patient encounter.
+                Assessment:
+                - Provide your assessment of the patient's condition, including any diagnoses or differential diagnoses.
 
-            Assessment:
-            - Provide your assessment of the patient's condition, including any diagnoses or differential diagnoses.
+                Plan:
+                - Recommend an appropriate treatment plan, including any medications, therapies, referrals, or follow-up instructions.
 
-            Plan:
-            - Recommend an appropriate treatment plan, including any medications, therapies, referrals, or follow-up instructions.
+                Use the following information about the patient to generate the SOAP note:
 
-            Use the following information about the patient to generate the SOAP note:
+                Patient name: [Patient Name]
+                Age: [Patient Age]
+                Chief complaint: [Chief Complaint]
+                History of present illness: [History of Present Illness]
+                Past medical history: [Past Medical History]
+                Social history: [Social History] 
+                Review of systems: [Review of Systems]
+                Physical exam findings: [Physical Exam Findings]
+                Vital signs: [Vital Signs]
+                Laboratory results: [Laboratory Results]
 
-            Patient name: [Patient Name]
-            Age: [Patient Age]
-            Chief complaint: [Chief Complaint]
-            History of present illness: [History of Present Illness]
-            Past medical history: [Past Medical History]
-            Social history: [Social History] 
-            Review of systems: [Review of Systems]
-            Physical exam findings: [Physical Exam Findings]
-            Vital signs: [Vital Signs]
-            Laboratory results: [Laboratory Results]
+                Medications:
+                - [Medication 1]
+                - [Medication 2]
+                - [Medication 3]
 
-            Respond with the complete SOAP note in the following format:
+                Patient advisories:
+                - Do's and Don'ts for the patient
 
-            Subjective:
-            [Subjective summary]
+                Respond with the complete SOAP note in the following format:
 
-            Objective: 
-            [Objective summary]
+                Subjective:
+                [Subjective summary]
 
-            Assessment:
-            [Assessment summary]  
+                Objective: 
+                [Objective summary]
 
-            Plan:
-            [Plan summary] """)
+                Assessment:
+                [Assessment summary]  
+
+                Plan:
+                [Plan summary]
+            """)
 
             output_parser = StrOutputParser()
 

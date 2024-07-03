@@ -11,3 +11,9 @@ deepgram-sdk == 3.3.1
 # crewai-tools == 0.3.0
 audio-recorder-streamlit == 0.0.9
 sounddevice == 0.4.7
+matplotlib == 3.9.0
+
+
+
+# 3/2024
+# langchain-core 0.2.11
