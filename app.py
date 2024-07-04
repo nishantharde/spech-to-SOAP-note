@@ -51,7 +51,8 @@ def main():
     record_and_save_audio()
 
     # Check which audio file to use
-    audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "mono.mp3"
+    # audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "mono.mp3"
+    audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "doc_patient.mp3"
     # audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "test.wav"
 
     API_KEY = os.getenv("DG_API_KEY")
@@ -90,7 +91,8 @@ def main():
 
             # OpenAI integration for generating SOAP notes
             model = ChatOpenAI(model="gpt-3.5-turbo")
-            prompt = ChatPromptTemplate.from_template("""
+
+            prompt_soap_note = ChatPromptTemplate.from_template("""
                 You are an expert medical assistant trained to generate detailed SOAP notes based on patient information. Your task is to create a complete SOAP note that includes the following sections:
 
                 "Here are the patient's data = {topic}
@@ -121,14 +123,6 @@ def main():
                 Vital signs: [Vital Signs]
                 Laboratory results: [Laboratory Results]
 
-                Medications:
-                - [Medication 1]
-                - [Medication 2]
-                - [Medication 3]
-
-                Patient advisories:
-                - Do's and Don'ts for the patient
-
                 Respond with the complete SOAP note in the following format:
 
                 Subjective:
@@ -146,9 +140,64 @@ def main():
 
             output_parser = StrOutputParser()
 
-            chain = prompt | model | output_parser
+            chain_soap_note = prompt_soap_note | model | output_parser
+            soap_note = chain_soap_note.invoke({"topic": transcript})
+            
             st.title("SOAP note")
-            st.write(chain.invoke({"topic": transcript}))
+            soap_note_text = st.text_area("SOAP Note", value=soap_note, height=400)
+
+            st.divider()
+
+            # OpenAI integration for generating medication suggestions and patient advisories
+            prompt_medications_and_advisories = ChatPromptTemplate.from_template("""
+                You are an expert medical assistant trained to provide detailed recommendations for medications and patient advisories based on patient information. Your task is to generate a list of medications and advisories that includes the following sections:
+
+                "Here are the patient's data = {topic}
+                you also need to figure out appropriate medications and patient advisories from the data."
+
+                Medications:
+                - List of medications that the patient should take.
+
+                Patient advisories:
+                - Detailed list of do's and don'ts for the patient.
+
+                Use the following information about the patient to generate the recommendations:
+
+                Patient name: [Patient Name]
+                Age: [Patient Age]
+                Chief complaint: [Chief Complaint]
+                History of present illness: [History of Present Illness]
+                Past medical history: [Past Medical History]
+                Social history: [Social History] 
+                Review of systems: [Review of Systems]
+                Physical exam findings: [Physical Exam Findings]
+                Vital signs: [Vital Signs]
+                Laboratory results: [Laboratory Results]
+
+                Respond with the recommendations in the following format:
+
+                Medications:
+                - [Medication 1]
+                - [Medication 2]
+                - [Medication 3]
+
+                Patient advisories:
+                Do's:
+                - [Do 1]
+                - [Do 2]
+                - [Do 3]
+
+                Don'ts:
+                - [Don't 1]
+                - [Don't 2]
+                - [Don't 3]
+            """)
+
+            chain_medications_and_advisories = prompt_medications_and_advisories | model | output_parser
+            medications_and_advisories = chain_medications_and_advisories.invoke({"topic": transcript})
+
+            st.title("Medications and Patient Advisories")
+            medications_and_advisories_text = st.text_area("Medications and Advisories", value=medications_and_advisories, height=400)
 
         except Exception as e:
             st.write(f"Exception: {e}")

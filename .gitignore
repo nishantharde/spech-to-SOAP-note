@@ -5,11 +5,15 @@ __pycache__/
 .env
 # C extensions
 *.so
+# 
+
 .env
 test.py
 test2.py
 mono.mp3
-
+voice_env
+u_audio.wav
+# 
 # Distribution / packaging
 .Python
 build/
