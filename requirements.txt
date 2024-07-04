@@ -15,3 +15,5 @@ matplotlib==3.9.0
 # dotenv==0.0.5
 python-dotenv==1.0.1 #
 scipy==1.14.0
+# for deployment testing in render server
+pyaudio==0.2.14
