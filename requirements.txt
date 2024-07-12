@@ -18,9 +18,9 @@ scipy==1.14.0
 # playsound     pygame
 langchain-google-genai==1.0.7
 
-# langchain-groq==2.2.2  # groq model
+langchain-groq==2.2.2  # groq model
 
 
 # for deployment testing in render server
 # pyaudio==0.2.14
-# portaudio19-dev
+# portaudio19-devS
