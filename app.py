@@ -2,18 +2,21 @@ import streamlit as st
 import os
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI 
+from langchain_groq import ChatGroq
 from dotenv import load_dotenv
-from deepgram import (
-    DeepgramClient,
-    PrerecordedOptions,
-    FileSource,
-)
+from deepgram import DeepgramClient, PrerecordedOptions, FileSource
 import sounddevice as sd
 import scipy.io.wavfile as wavfile
 
 load_dotenv()
+total_data = []
+file_path = 'U_audio.wav'
 
+# Check if the file exists
+if os.path.exists(file_path):
+    # Delete the file
+    os.remove(file_path)
 def record_and_save_audio():
     sample_rate = 44100
 
@@ -51,12 +54,14 @@ def main():
     record_and_save_audio()
 
     # Check which audio file to use
-    # audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "mono.mp3"
-    audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "doc_patient.mp3"
-    # audio_file_path = "u_audio.wav" if os.path.exists("u_audio.wav") else "test.wav"
+    if os.path.exists("u_audio.wav"):
+      audio_file_path = "u_audio.wav"
+    else :
+       audio_file_path =  "doc_patient.mp3"
 
     API_KEY = os.getenv("DG_API_KEY")
-    os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+    # os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+    os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 
     # Generate button
     if st.button("Generate"):
@@ -67,13 +72,13 @@ def main():
             with open(audio_file_path, "rb") as file:
                 buffer_data = file.read()
 
-            payload: FileSource = {
+            payload = {
                 "buffer": buffer_data,
             }
 
             # Configure Deepgram options for audio analysis
             options = PrerecordedOptions(
-                model="nova-2",
+                model="nova-2-general",
                 smart_format=True
             )
 
@@ -81,7 +86,6 @@ def main():
             response = deepgram.listen.prerecorded.v("1").transcribe_file(payload, options)
 
             # Print the response
-            print(response)
             transcript = response["results"]["channels"][0]["alternatives"][0]["transcript"]
 
             st.title("Audio transcript")
@@ -90,7 +94,9 @@ def main():
             st.divider()
 
             # OpenAI integration for generating SOAP notes
-            model = ChatOpenAI(model="gpt-3.5-turbo")
+            # model = ChatOpenAI(model="gpt-3.5-turbo") #openai
+            model = ChatGroq(model="llama3-70b-8192")  #groq
+            
 
             prompt_soap_note = ChatPromptTemplate.from_template("""
                 You are an expert medical assistant trained to generate detailed SOAP notes based on patient information. Your task is to create a complete SOAP note that includes the following sections:
@@ -111,31 +117,21 @@ def main():
                 - Recommend an appropriate treatment plan, including any medications, therapies, referrals, or follow-up instructions.
 
                 Use the following information about the patient to generate the SOAP note:
-
-                Patient name: [Patient Name]
-                Age: [Patient Age]
-                Chief complaint: [Chief Complaint]
-                History of present illness: [History of Present Illness]
-                Past medical history: [Past Medical History]
-                Social history: [Social History] 
-                Review of systems: [Review of Systems]
-                Physical exam findings: [Physical Exam Findings]
-                Vital signs: [Vital Signs]
-                Laboratory results: [Laboratory Results]
-
+                
+                Patient name
+                Age
+                History of present illness
+                
                 Respond with the complete SOAP note in the following format:
 
                 Subjective:
-                [Subjective summary]
 
                 Objective: 
-                [Objective summary]
 
                 Assessment:
-                [Assessment summary]  
 
                 Plan:
-                [Plan summary]
+                
             """)
 
             output_parser = StrOutputParser()
@@ -155,42 +151,28 @@ def main():
                 "Here are the patient's data = {topic}
                 you also need to figure out appropriate medications and patient advisories from the data."
 
+                Use the following information about the patient to generate the recommendations only if the patient provide this details :
+
+                Patient name
+                Age
+                History of present illness
+                
                 Medications:
                 - List of medications that the patient should take.
 
                 Patient advisories:
                 - Detailed list of do's and don'ts for the patient.
 
-                Use the following information about the patient to generate the recommendations:
-
-                Patient name: [Patient Name]
-                Age: [Patient Age]
-                Chief complaint: [Chief Complaint]
-                History of present illness: [History of Present Illness]
-                Past medical history: [Past Medical History]
-                Social history: [Social History] 
-                Review of systems: [Review of Systems]
-                Physical exam findings: [Physical Exam Findings]
-                Vital signs: [Vital Signs]
-                Laboratory results: [Laboratory Results]
-
                 Respond with the recommendations in the following format:
-
+                
                 Medications:
-                - [Medication 1]
-                - [Medication 2]
-                - [Medication 3]
+                    what madicions patient should take 
 
                 Patient advisories:
-                Do's:
-                - [Do 1]
-                - [Do 2]
-                - [Do 3]
-
-                Don'ts:
-                - [Don't 1]
-                - [Don't 2]
-                - [Don't 3]
+                    what a patient should do 
+                    
+                    what a patient should not do 
+         
             """)
 
             chain_medications_and_advisories = prompt_medications_and_advisories | model | output_parser
@@ -199,8 +181,63 @@ def main():
             st.title("Medications and Patient Advisories")
             medications_and_advisories_text = st.text_area("Medications and Advisories", value=medications_and_advisories, height=400)
 
+            # Combine all data and save to file
+            total_data.append(transcript)
+            total_data.append(soap_note)
+            total_data.append(medications_and_advisories)
+           
+ 
         except Exception as e:
             st.write(f"Exception: {e}")
+            
+    st.divider()
+    
+    st.header('Ask Anything about SOAP notes OR your health ')
+    st.text('VKAPS It Solutions Pvt Ltd.')
+
+    # Read the contents of the file
+    
+    # Initialize session state for chat history
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+
+    # model = ChatOpenAI(model="gpt-3.5-turbo") #openai
+    model = ChatGroq(model="llama3-70b-8192")  #groq
+    output_parser = StrOutputParser()
+
+    # Get user query input
+    user_query = st.chat_input("Ask your query here about the given patient details...")
+
+    # Create the chat prompt template
+    totle_chat = ChatPromptTemplate.from_template(""" 
+    You are a helpful AI assistant who is very humble and able to respond to every query of the user related to the users health.
+    Provide accurate and straightforward responses to user queries. If the user greets you, respond with a greeting for example "Hello, how can I assist you today regarding your health or any queries you may have?". Always provide point-to-point, concise answers.
+
+    Answer the user query: {user_query} according to the data provided below.
+
+    {content}""")
+
+    # Define the overall chatbot flow
+    overall_chat_bot = totle_chat | model | output_parser
+
+    # Process the user query and get AI response
+    if user_query:
+        Ai_response = overall_chat_bot.invoke({"user_query": user_query, "content": total_data})
+
+        # Update chat history
+        st.session_state.chat_history.append({"role": "user", "content": user_query})
+        st.session_state.chat_history.append({"role": "ai", "content": Ai_response})
+
+    # Display chat history
+    for message in st.session_state.chat_history:
+        if message["role"] == "user":
+            with st.chat_message("You"):
+                st.markdown(message["content"])
+        else:
+            with st.chat_message("AI"):
+                st.markdown(message["content"])
+    # Chat functionality for SOAP notes
+
 
 if __name__ == "__main__":
     main()

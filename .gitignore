@@ -8,8 +8,8 @@ __pycache__/
 # 
 
 .env
-test.py
-test2.py
+text_to_voice.py
+chat_bot.py
 mono.mp3
 voice_env
 u_audio.wav
